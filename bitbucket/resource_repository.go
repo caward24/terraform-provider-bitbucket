@@ -16,23 +16,21 @@ type CloneUrl struct {
 }
 
 type Repository struct {
-	SCM         string `json:"scm,omitempty"`
-	HasWiki     bool   `json:"has_wiki,omitempty"`
-	HasIssues   bool   `json:"has_issues,omitempty"`
-	Website     string `json:"website,omitempty"`
-	IsPrivate   bool   `json:"is_private,omitempty"`
-	ForkPolicy  string `json:"fork_policy,omitempty"`
-	Language    string `json:"language,omitempty"`
-	Description string `json:"description,omitempty"`
+	SCM         string `json:"scmId,omitempty"`
+	Forkable  	bool   `json:"forkable,omitempty"`
 	Name        string `json:"name,omitempty"`
 	Slug        string `json:"slug,omitempty"`
-	UUID        string `json:"uuid,omitempty"`
-	Project     struct {
-		Key string `json:"key,omitempty"`
-	} `json:"project,omitempty"`
-	Links struct {
-		Clone []CloneUrl `json:"clone,omitempty"`
-	} `json:"links,omitempty"`
+	ID        	string `json:"id,omitempty"`
+	Origin    	struct {
+		Project struct {
+			Key 		string `json:"key,omitempty"`
+			Description string `json:"description,omitempty"`
+		} `json:"project,omitempty"`
+		Public   		bool   `json:"public,omitempty"`
+		Links 	struct {
+			Clone []CloneUrl   `json:"clone,omitempty"`
+		} `json:"links,omitempty"`
+	} `json:"origin,omitempty"`
 }
 
 func resourceRepository() *schema.Resource {
@@ -46,58 +44,28 @@ func resourceRepository() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"scm": &schema.Schema{
+			"scmId": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "git",
-			},
-			"has_wiki": &schema.Schema{
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
-			"has_issues": &schema.Schema{
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
-			"website": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"clone_ssh": &schema.Schema{
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"clone_https": &schema.Schema{
-				Type:     schema.TypeString,
-				Computed: true,
 			},
 			"project_key": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"is_private": &schema.Schema{
+			"public": &schema.Schema{
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  true,
 			},
-			"fork_policy": &schema.Schema{
-				Type:     schema.TypeString,
+			"forkable": &schema.Schema{
+				Type:     schema.TypeBool,
 				Optional: true,
-				Default:  "allow_forks",
-			},
-			"language": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
+				Default:  false,
 			},
 			"description": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
-			},
-			"owner": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
 			},
 			"name": &schema.Schema{
 				Type:     schema.TypeString,
@@ -114,19 +82,16 @@ func resourceRepository() *schema.Resource {
 
 func newRepositoryFromResource(d *schema.ResourceData) *Repository {
 	repo := &Repository{
-		Name:        d.Get("name").(string),
-		Slug:        d.Get("slug").(string),
-		Language:    d.Get("language").(string),
-		IsPrivate:   d.Get("is_private").(bool),
-		Description: d.Get("description").(string),
-		ForkPolicy:  d.Get("fork_policy").(string),
-		HasWiki:     d.Get("has_wiki").(bool),
-		HasIssues:   d.Get("has_issues").(bool),
-		SCM:         d.Get("scm").(string),
-		Website:     d.Get("website").(string),
+		Name:      	d.Get("name").(string),
+		Slug:       d.Get("slug").(string),
+		Forkable:  	d.Get("forkable").(bool),
+		SCM:        d.Get("scmId").(string),
+		ID:         d.Get("id").(string),
 	}
+	repo.Origin.Project.Description  = 	d.Get("description").(string)
+	repo.Origin.Project.Key          = 	d.Get("project_key").(string)
+	repo.Origin.Public               =	d.Get("public").(bool)
 
-	repo.Project.Key = d.Get("project_key").(string)
 	return repo
 }
 
@@ -146,8 +111,8 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		repoSlug = d.Get("name").(string)
 	}
 
-	_, err := client.Put(fmt.Sprintf("2.0/repositories/%s/%s",
-		d.Get("owner").(string),
+	_, err := client.Put(fmt.Sprintf("/rest/api/1.0/projects/%s/repos/%s",
+		d.Get("project_key").(string),
 		repoSlug,
 	), jsonpayload)
 
@@ -174,8 +139,8 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		repoSlug = d.Get("name").(string)
 	}
 
-	_, err = client.Post(fmt.Sprintf("2.0/repositories/%s/%s",
-		d.Get("owner").(string),
+	_, err = client.Post(fmt.Sprintf("/rest/api/1.0/projects/%s/repos/%s",
+		d.Get("project_key").(string),
 		repoSlug,
 	), bytes.NewBuffer(bytedata))
 
@@ -183,7 +148,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	d.SetId(string(fmt.Sprintf("%s/%s", d.Get("owner").(string), repoSlug)))
+	d.SetId(string(fmt.Sprintf("%s/%s", d.Get("project_key").(string), repoSlug)))
 
 	return resourceRepositoryRead(d, m)
 }
@@ -192,10 +157,10 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	if id != "" {
 		idparts := strings.Split(id, "/")
 		if len(idparts) == 2 {
-			d.Set("owner", idparts[0])
+			d.Set("key", idparts[0])
 			d.Set("slug", idparts[1])
 		} else {
-			return fmt.Errorf("Incorrect ID format, should match `owner/slug`")
+			return fmt.Errorf("Incorrect ID format, should match `project_key/slug`")
 		}
 	}
 
@@ -206,8 +171,8 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	client := m.(*BitbucketClient)
-	repo_req, _ := client.Get(fmt.Sprintf("2.0/repositories/%s/%s",
-		d.Get("owner").(string),
+	repo_req, _ := client.Get(fmt.Sprintf("/rest/api/1.0/projects/%s/repos/%s",
+		d.Get("project_key").(string),
 		repoSlug,
 	))
 
@@ -225,21 +190,17 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 			return decodeerr
 		}
 
-		d.Set("scm", repo.SCM)
-		d.Set("is_private", repo.IsPrivate)
-		d.Set("has_wiki", repo.HasWiki)
-		d.Set("has_issues", repo.HasIssues)
+		d.Set("scmId", repo.SCM)
+		d.Set("public", repo.Origin.Public)
 		d.Set("name", repo.Name)
 		if repo.Slug != "" && repo.Name != repo.Slug {
 			d.Set("slug", repo.Slug)
 		}
-		d.Set("language", repo.Language)
-		d.Set("fork_policy", repo.ForkPolicy)
-		d.Set("website", repo.Website)
-		d.Set("description", repo.Description)
-		d.Set("project_key", repo.Project.Key)
+		d.Set("forkable", repo.Forkable)
+		d.Set("description", repo.Origin.Project.Description)
+		d.Set("project_key", repo.Origin.Project.Key)
 
-		for _, clone_url := range repo.Links.Clone {
+		for _, clone_url := range repo.Origin.Links.Clone {
 			if clone_url.Name == "https" {
 				d.Set("clone_https", clone_url.Href)
 			} else {
@@ -260,8 +221,8 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	}
 
 	client := m.(*BitbucketClient)
-	_, err := client.Delete(fmt.Sprintf("2.0/repositories/%s/%s",
-		d.Get("owner").(string),
+	_, err := client.Delete(fmt.Sprintf("/rest/api/1.0/projects/%s/repos/%s",
+		d.Get("project_key").(string),
 		repoSlug,
 	))
 

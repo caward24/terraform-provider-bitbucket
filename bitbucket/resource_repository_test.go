@@ -15,7 +15,7 @@ func TestAccBitbucketRepository_basic(t *testing.T) {
 	testUser := os.Getenv("BITBUCKET_USERNAME")
 	testAccBitbucketRepositoryConfig := fmt.Sprintf(`
 		resource "bitbucket_repository" "test_repo" {
-			owner = "%s"
+			project_key = "%s"
 			name = "test-repo-for-repository-test"
 		}
 	`, testUser)
@@ -41,7 +41,7 @@ func TestAccBitbucketRepository_camelcase(t *testing.T) {
 	testUser := os.Getenv("BITBUCKET_USERNAME")
 	testAccBitbucketRepositoryConfig := fmt.Sprintf(`
 		resource "bitbucket_repository" "test_repo" {
-			owner = "%s"
+			project_key = "%s"
 			name = "TestRepoForRepositoryTest"
 			slug = "test-repo-for-repository-test"
 		}
@@ -69,7 +69,7 @@ func testAccCheckBitbucketRepositoryDestroy(s *terraform.State) error {
 		return fmt.Errorf("Not found %s", "bitbucket_repository.test_repo")
 	}
 
-	response, _ := client.Get(fmt.Sprintf("2.0/repositories/%s/%s", rs.Primary.Attributes["owner"], rs.Primary.Attributes["name"]))
+	response, _ := client.Get(fmt.Sprintf("rest/api/1.0/projects/%s/repos/%s", rs.Primary.Attributes["project_key"], rs.Primary.Attributes["name"]))
 
 	if response.StatusCode != 404 {
 		return fmt.Errorf("Repository still exists")

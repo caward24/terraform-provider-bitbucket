@@ -12,7 +12,7 @@ type Reviewer struct {
 	UUID        string `json:"uuid,omitempty"`
 	Username    string `json:"username,omitempty"`
 	Type        string `json:"type,omitempty"`
-}
+} `json:"reviewers,omitempty"`
 
 type PaginatedReviewers struct {
 	Values []Reviewer `json:"values,omitempty"`
@@ -25,7 +25,7 @@ func resourceDefaultReviewers() *schema.Resource {
 		Delete: resourceDefaultReviewersDelete,
 
 		Schema: map[string]*schema.Schema{
-			"owner": {
+			"project_key": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
@@ -51,7 +51,7 @@ func resourceDefaultReviewersCreate(d *schema.ResourceData, m interface{}) error
 
 	for _, user := range d.Get("reviewers").(*schema.Set).List() {
 		reviewerResp, err := client.PutOnly(fmt.Sprintf("2.0/repositories/%s/%s/default-reviewers/%s",
-			d.Get("owner").(string),
+			d.Get("project_key").(string),
 			d.Get("repository").(string),
 			user,
 		))
@@ -67,14 +67,14 @@ func resourceDefaultReviewersCreate(d *schema.ResourceData, m interface{}) error
 		defer reviewerResp.Body.Close()
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s/reviewers", d.Get("owner").(string), d.Get("repository").(string)))
+	d.SetId(fmt.Sprintf("%s/%s/reviewers", d.Get("project_key").(string), d.Get("repository").(string)))
 	return resourceDefaultReviewersRead(d, m)
 }
 func resourceDefaultReviewersRead(d *schema.ResourceData, m interface{}) error {
 	client := m.(*BitbucketClient)
 
 	reviewersResponse, err := client.Get(fmt.Sprintf("2.0/repositories/%s/%s/default-reviewers",
-		d.Get("owner").(string),
+		d.Get("project_key").(string),
 		d.Get("repository").(string),
 	))
 
@@ -101,7 +101,7 @@ func resourceDefaultReviewersDelete(d *schema.ResourceData, m interface{}) error
 
 	for _, user := range d.Get("reviewers").(*schema.Set).List() {
 		resp, err := client.Delete(fmt.Sprintf("2.0/repositories/%s/%s/default-reviewers/%s",
-			d.Get("owner").(string),
+			d.Get("project_key").(string),
 			d.Get("repository").(string),
 			user.(string),
 		))

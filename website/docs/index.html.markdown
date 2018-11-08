@@ -18,6 +18,7 @@ Use the navigation to the left to read about the available resources.
 ```hcl
 # Configure the Bitbucket Provider
 provider "bitbucket" {
+  endpoint = "https://git.company.com"
   username = "GobBluthe"
   password = "idoillusions" # you can also use app passwords
 }
@@ -33,6 +34,9 @@ resource "bitbucket_repository" "illusions" {
 ## Argument Reference
 
 The following arguments are supported in the `provider` block:
+
+* `endpoint` - (Required) Your bitbucket base url. You can
+  also set this via the environment variable. `BITBUCKET_ENDPOINT`
 
 * `username` - (Required) Your username used to connect to bitbucket. You can
   also set this via the environment variable. `BITBUCKET_USERNAME`

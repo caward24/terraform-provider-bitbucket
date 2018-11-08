@@ -26,18 +26,19 @@ func (e Error) Error() string {
 
 const (
 	// BitbucketEndpoint is the fqdn used to talk to bitbucket
-	BitbucketEndpoint string = "https://api.bitbucket.org/"
+	//BitbucketEndpoint string = "https://api.bitbucket.org/"
 )
 
 type BitbucketClient struct {
-	Username   string
-	Password   string
-	HTTPClient *http.Client
+	BitbucketEndpoint 	string
+	Username   			string
+	Password   			string
+	HTTPClient 			*http.Client
 }
 
 func (c *BitbucketClient) Do(method, endpoint string, payload *bytes.Buffer) (*http.Response, error) {
 
-	absoluteendpoint := BitbucketEndpoint + endpoint
+	absoluteendpoint := c.BitbucketEndpoint + endpoint
 	log.Printf("[DEBUG] Sending request to %s %s", method, absoluteendpoint)
 
 	var bodyreader io.Reader
